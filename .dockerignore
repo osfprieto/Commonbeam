@@ -1,0 +1,6 @@
+.git
+.commonbeam
+bin
+.env
+*.exe
+coverage.out

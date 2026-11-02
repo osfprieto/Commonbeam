@@ -2,90 +2,115 @@
 
 **Shared compute. Open intelligence.**
 
-Commonbeam is a proposed open protocol for community-powered AI inference,
+Commonbeam is an API/CLI-first project for community-powered AI inference,
 contribution-earned access, and a sustainable public compute commons.
 
-**Status: design and implementation planning.** There is no running network,
-implemented protocol, issued token, or guaranteed inference allowance.
+**Current implementation: local test network.** The working demonstration uses
+simulated inference and test balances. It is not a public decentralized service,
+a cryptocurrency, proof of model execution, or a promise of free AI capacity.
 
 ## Goal
 
-Build a community-governed network where independent operators contribute
-compute and earn rewards or service credits. Allocate a transparently funded
-share of usable capacity to public access without requiring a subscription,
-cryptocurrency purchase, or hardware contribution.
+Independent operators contribute compute and earn access or rewards. A
+transparently funded share of usable capacity provides bounded public access
+without requiring a subscription, cryptocurrency purchase, or hardware.
 
-Users should be able to choose providers, run their own clients and routers, and
-understand how access is allocated when demand exceeds supply. Verification
-assumptions, operating costs, and funding coverage must be explicit.
+Commonbeam follows the DePIN pattern on the supply side. Its intended focus is
+the **commons allocation layer**: public access without a capital prerequisite,
+contribution-earned service, portable provider/router choice, visible scarcity,
+and funding that can survive declining token subsidies. These commitments are
+not claims of novelty or capabilities already demonstrated at production scale.
 
-## What makes Commonbeam worth building?
+## What works locally
 
-Commonbeam fits the decentralized physical infrastructure network (DePIN)
-pattern: independent hardware operators contribute resources and receive
-incentives. Its proposed focus is the **commons allocation layer**, not merely
-another GPU marketplace or cryptocurrency.
+- Go CLI, authority, independent routers, and outbound-polling provider workers.
+- PostgreSQL reservations, finite pools, idempotency, cancellation, recovery,
+  signed receipts, and encrypted temporary request/result evidence.
+- Bounded public sessions, contributor allowances, test sponsorship, test-paid
+  grants, and unallocated pool rebalancing.
+- Streaming text chat and model discovery through a documented compatible API
+  subset, with Python and JavaScript client examples.
+- Deterministic simulation and HTTP adapters for separately qualified vLLM and
+  llama.cpp servers. No model is downloaded automatically.
+- Observation-only audits, provider draining/revocation, diagnostics, container
+  deployment definitions, and CI configuration.
 
-The commitments to test are:
+There is **one accounting authority and one exact model/profile per test
+network**. Real-model/GPU qualification, genuinely independent operators,
+production economics, and public operations remain separate gates.
 
-- **Public access without a capital prerequisite:** a bounded, funded pool for
-  people who do not own GPUs or cryptocurrency.
-- **Contribution-earned access:** verified resource contributions earn access to
-  participating providers.
-- **Portable access:** changing a participating provider or router should not
-  require abandoning an allocation or creating a new platform account.
-- **Transparent scarcity:** published admission, queueing, and allocation rules
-  instead of a promise of unlimited service.
-- **Sustainable funding:** distinguish purchases, sponsorship, donated compute,
-  and token subsidies, and test viability as subsidies decline.
+## Try the local network
 
-These are proposed product commitments, not claims that their individual
-components are novel or that Commonbeam is already more capable than existing
-networks.
+Requires Go 1.27.3 and a dedicated local PostgreSQL database. The example uses
+PowerShell; set the URL using your own local database credentials.
 
-## How it would work
+```powershell
+go build -o bin\commonbeam.exe .\cmd\commonbeam
+$env:COMMONBEAM_DATABASE_URL = "<local PostgreSQL connection URL>"
+.\bin\commonbeam.exe dev
+```
 
-1. Operators register model-serving capacity and pass independent checks.
-2. The network conservatively allocates usable capacity among public,
-   contributor, and paid pools.
-3. A user-selected router obtains admission and sends a request to an eligible
-   provider.
-4. The provider streams the response and supplies signed accounting evidence.
-5. Auditing, settlement, and disputes determine eligible rewards.
+In another terminal:
 
-Inference runs off-chain. A ledger can track allocations, commitments, deposits,
-and settlement; LLM responses must not determine financial consensus.
+```powershell
+.\bin\commonbeam.exe session
+.\bin\commonbeam.exe models
+.\bin\commonbeam.exe chat --prompt "Hello, Commonbeam"
+.\bin\commonbeam.exe balance
+.\bin\commonbeam.exe status
+```
 
-Start with complete model replicas, one approved model/runtime profile, and
-self-hostable clients and routers. Evaluate existing compute networks before
-building a new provider network. Use contribution credits and test assets before
-considering a transferable network coin.
+The answer explicitly says that no model was executed. `dev` starts two
+simulated providers and seeds finite test budgets once. It does not replenish
+funding automatically. Keep `.commonbeam` private and retain it across restarts.
 
-## Non-goals
+For containers, independent consumers/operators, real-backend attachment, and
+recovery, see the [operator guide](docs/operators.md). Docker definitions are
+provided, but Docker execution must be qualified on an equipped host.
 
-- Unlimited free inference or guaranteed perpetual access.
-- Making every network participant execute or vote on every response.
-- Replacing financial consensus with arbitrary AI computation.
-- Treating generated text, traffic volume, or token issuance as proof of value.
-- Claiming ordinary remote inference is private from the executing provider.
-- Launching a speculative token before validating service and economics.
+## Development
 
-## Design and delivery
+Further testing is currently deferred at the owner's request. CI is
+manual-only (`workflow_dispatch`), so pushes and pull requests do not start
+test runs automatically. The commands below are for when testing resumes.
 
-- [Proposed architecture and economics](docs/design.md)
-- [Phased implementation plan and acceptance gates](docs/implementation-plan.md)
+```powershell
+go fmt ./...
+go vet ./...
+$env:COMMONBEAM_TEST_DATABASE_URL = "<dedicated test PostgreSQL URL>"
+go test ./... -count=1 -timeout=90s
+go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+```
 
-The first milestone is a threat model, capacity-and-cost model, and integration
-spike. A successful MVP must demonstrate independent provider choice, bounded
-public access, contribution accounting, and measurable verification behavior.
+Database tests create and remove their own uniquely named schemas; use a
+dedicated test database with schema-creation permission, never production.
+Without the test URL, database/integration tests explicitly skip and do not
+establish persistent or concurrent correctness.
 
-## Project decisions still open
+## Design and evidence
 
-Runtime and model selection, implementation languages, infrastructure partners,
-settlement chain, credential mechanisms, governance, and issuance parameters
-remain undecided. The design documents distinguish proposals from commitments.
+- [Architecture proposal](docs/design.md)
+- [Implementation status and remaining gates](docs/implementation-plan.md)
+- [Protocol and trust boundaries](docs/protocol.md)
+- [Operator and client journeys](docs/operators.md)
+- [Feasibility and validation evidence](docs/feasibility.md)
+- [API subset](api/openapi.yaml)
+- [Development rules](AGENTS.md)
 
-No license has been selected yet. An explicit repository license and model
-license review are prerequisites for accepting external contributions or
-distributing an implementation; public visibility alone does not grant those
-rights.
+A publicity website is optional. No website is required for discovery,
+allocations, the CLI, or independent routers.
+
+## Safety and license status
+
+All funding is test-only. Public sessions are not unique-person identities.
+Routers and providers see plaintext prompts. At-rest encryption does not provide
+confidential inference. Receipts attest to signatures, not honest execution.
+Database owners and the accounting authority remain trusted.
+
+Do not expose the HTTP-only pilot to the internet, handle real funds, launch a
+token, or claim trustless service. Licensing, model downloads, paid services,
+public deployments, and changes to trust/privacy assumptions need owner approval.
+
+**No repository license has been selected.** Public visibility does not grant
+redistribution rights; a license decision is required before external
+distribution or contributions.

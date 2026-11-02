@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:18.6-bookworm@sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8
+    environment:
+      POSTGRES_USER: commonbeam
+      POSTGRES_DB: commonbeam
+      POSTGRES_PASSWORD: ${COMMONBEAM_POSTGRES_PASSWORD:?Set a local hexadecimal test password first}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commonbeam -d commonbeam"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  commonbeam:
+    build:
+      context: ..
+    command: ["dev", "--state", "/state", "--container-network"]
+    environment:
+      COMMONBEAM_DATABASE_URL: postgres://commonbeam:${COMMONBEAM_POSTGRES_PASSWORD}@postgres:5432/commonbeam?sslmode=disable
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - network-state:/state
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/commonbeam", "status", "--state", "/state"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+volumes:
+  postgres-data:
+  network-state:

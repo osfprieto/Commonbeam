@@ -1,0 +1,38 @@
+name: Test network
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-bookworm@sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8
+        env:
+          POSTGRES_USER: commonbeam
+          POSTGRES_PASSWORD: commonbeam-ci-only
+          POSTGRES_DB: commonbeam
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U commonbeam -d commonbeam"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      COMMONBEAM_TEST_DATABASE_URL: postgres://commonbeam:commonbeam-ci-only@127.0.0.1:5432/commonbeam?sslmode=disable
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: test -z "$(gofmt -l cmd internal test)"
+      - run: go vet ./...
+      - run: go test -race ./... -count=1 -timeout=180s
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+      - name: Cross-compile CLI
+        run: |
+          for target in linux/amd64 linux/arm64 windows/amd64 darwin/arm64; do
+            GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0 \
+              go build -trimpath -o "bin/commonbeam-${target%/*}-${target#*/}" ./cmd/commonbeam
+          done

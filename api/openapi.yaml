@@ -1,0 +1,116 @@
+openapi: 3.1.0
+info:
+  title: Commonbeam local test network
+  version: 0.1.0
+  description: |
+    One model/hash/profile per network and one expiring test epoch.
+    No real payments, production token, confidential inference, or proof of execution.
+    Chat and model routes are a documented compatibility subset, not the entire
+    API of another product. Unknown request fields are rejected.
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /v1/models:
+    get:
+      responses:
+        "200":
+          description: Active model identifiers.
+  /v1/chat/completions:
+    post:
+      security: [{session: []}]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: {type: string, minLength: 8, maxLength: 128}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ChatRequest"}
+      responses:
+        "200":
+          description: Completion JSON or server-sent JSON chunks ending in data [DONE].
+          headers:
+            X-Commonbeam-Job-Id:
+              schema: {type: string}
+        "400":
+          description: Unsupported fields, modality, limits or request profile.
+        "401":
+          description: Session credential missing or invalid.
+        "402":
+          description: Finite test balance exhausted.
+        "409":
+          description: Idempotency mismatch, expired evidence, or active session job.
+        "503":
+          description: Capacity/authority unavailable; no automatic model downgrade.
+  /commonbeam/v1/session:
+    post:
+      description: Grants a finite pseudonymous test session from the funded public pool.
+      responses:
+        "201":
+          description: Token returned once; this is not unique-person identification.
+        "402":
+          description: Public funding exhausted.
+  /commonbeam/v1/balance:
+    get:
+      security: [{session: []}]
+      responses:
+        "200":
+          description: Remaining test accounting units.
+  /commonbeam/v1/status:
+    get:
+      responses:
+        "200":
+          description: Aggregate pool budgets, epoch expiry, privacy and trust labels.
+  /commonbeam/v1/jobs/{id}:
+    get:
+      security: [{session: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Own job state, output and signed receipt, without original prompt.
+        "401":
+          description: Foreign or missing account credential.
+  /commonbeam/v1/jobs/{id}/cancel:
+    post:
+      security: [{session: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Cancellation requested; accepted capacity remains held until acknowledgement or expiry.
+        "401":
+          description: Foreign or missing account credential.
+components:
+  securitySchemes:
+    session:
+      type: http
+      scheme: bearer
+  schemas:
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [model, messages]
+      properties:
+        model: {type: string, minLength: 1}
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, content]
+            properties:
+              role: {type: string, enum: [system, user, assistant]}
+              content: {type: string, minLength: 1}
+        stream: {type: boolean, default: false}
+        max_tokens: {type: integer, minimum: 1, maximum: 512, default: 512}
+        temperature: {type: number, enum: [0]}
